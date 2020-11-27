@@ -11,6 +11,8 @@ import math
 from sklearn.utils import shuffle
 import os
 import ctypes
+from util.enums import GanualityLevel
+
 
 
 
@@ -37,7 +39,7 @@ class App(tk.Frame):
         self.question4 = tk.Entry(self)
         self.question4.grid(row=3, column=1)
 
-        tk.Label(self, text="Granularity ").grid(row=4, column=0)
+        tk.Label(self, text="Granularity(w,d,h,m,s,tm:TenMinute,ts:ThirtySec): ").grid(row=4, column=0)
         self.question5 = tk.Entry(self)
         self.question5.grid(row=4, column=1)
 
@@ -97,28 +99,38 @@ def printAnswers(answers):
     deltadate = abs(deltadate)
     print(deltadate.days)
 
-    if answers['Granularity'] == 'Day':
+    if answers['Granularity'] == 'd':
         SyntheticValuesCount = deltadate.days
+        level = GanualityLevel.one_day.value
 
-    elif answers['Granularity'] == 'Hour':
+    elif answers['Granularity'] == 'h':
         SyntheticValuesCount = (deltadate.days) * 24
+        level = GanualityLevel.one_hour.value
 
-    elif answers['Granularity'] == 'Minute':
+    elif answers['Granularity'] == 'm':
         SyntheticValuesCount = (deltadate.days) * 24 * 60
+        level = GanualityLevel.one_minute.value
 
-    elif answers['Granularity'] == 'Second':
+
+    elif answers['Granularity'] == 's':
         SyntheticValuesCount = (deltadate.days) * 24 * 60 * 60
+        level = GanualityLevel.one_sec.value
 
-    elif answers['Granularity'] == 'Tenmin':
+    elif answers['Granularity'] == 'tm':
         SyntheticValuesCount = (deltadate.days) * 24 * 6
+        level = GanualityLevel.ten_min.value
 
-    elif answers['Granularity'] == 'ThirtySec':
+    elif answers['Granularity'] == 'ts':
         SyntheticValuesCount = (deltadate.days) * ((24 * 60) * 2)
+        level = GanualityLevel.thirty_sec.value
 
-    elif answers['Granularity'] == 'Week':
+    elif answers['Granularity'] == 'w':
         SyntheticValuesCount = (deltadate.days) / 7
+        level = GanualityLevel.one_week.value
 
-    else: int(deltadate)
+    else:
+        SyntheticValuesCount = deltadate.days
+        level = GanualityLevel.one_day.value
 
     benchmarkrange = math.ceil(float(0.50 * SyntheticValuesCount))  # 60% values from within benchmark defined
     limitrange     = math.ceil(int(0.30 * SyntheticValuesCount))   # 35% values from within low limit 1 & 2 defined
@@ -154,15 +166,75 @@ def printAnswers(answers):
 
     df_replicate = df.head(replicate_range)
     df = df.append(df_replicate, ignore_index=True)
-    print("original dataframe:\n")
+ #   print("original dataframe:\n")
     print(df)
     df = shuffle(df)
     print("shuffled data frame:\n")
     print(df)
+
+
+    #df_repeat = df.sample(n=len(df), replace=True)
+
+    #print(df_repeat)
+    #print(SyntheticData)
+    # print([item for item, count in collections.Counter(df).items() if count > 1])
+    # print(df.values)
+    # df.to_csv(answers['FileName']+'.csv' , index= False)
+    # print([item for item, count in collections.Counter(df).items() if count > 1])
+
+    df['ts'] = pd.DataFrame({'ts': pd.date_range(start=sdate, end=edate, freq=get_freq_by_level(level))})
+    df = df.sort_values(by='ts')
     df.to_csv(answers['FileName'] + '.csv', index=False)
+    print(df)
+    print("end")
+
+
+def get_freq_by_level(ganuality_level_value):
+    if GanualityLevel.one_hour.value[0] == ganuality_level_value[0]:
+        return '60T'
+    elif GanualityLevel.three_hour.value[0] == ganuality_level_value[0]:
+        return '180T'
+    elif GanualityLevel.one_day.value[0] == ganuality_level_value[0]:
+        return '1440T'
+    elif GanualityLevel.one_week.value[0] == ganuality_level_value[0]:
+        return '10080T'
+    elif GanualityLevel.ten_min.value[0] == ganuality_level_value[0]:
+        return '10T'
+    elif GanualityLevel.one_minute.value[0] == ganuality_level_value[0]:
+        return '1T'
+    elif GanualityLevel.one_sec.value[0] == ganuality_level_value[0]:
+        return '0.016666666667T'
+    elif GanualityLevel.thirty_sec.value[0] == ganuality_level_value[0]:
+        return '0.5T'
+
+
+
+
+
+def generatedata(answers):
+    CountOfRandValues = 100
+    OutliersCount = int(CountOfRandValues / 10)
+    MaxFeature = answers['IndicatorBenchmarkValue'] + (
+                (answers['IndicatorGoodValue'] / 100) * answers['IndicatorBenchmarkValue'])
+    MinFeature = answers['IndicatorBenchmarkValue'] - (
+                (answers['IndicatorGoodValue'] / 100) * answers['IndicatorBenchmarkValue'])
+    print(MinFeature)
+    print(MaxFeature)
 
 
 if __name__ == '__main__':
     root = tk.Tk()
+    root.title("Synthetic Data Generation")
+    windowWidth = root.winfo_reqwidth()
+    windowHeight = root.winfo_reqheight()
+    print("Width", windowWidth, "Height", windowHeight)
+
+    # Gets both half the screen width/height and window width/height
+    positionRight = int(root.winfo_screenwidth() / 2 - windowWidth / 2)
+    positionDown = int(root.winfo_screenheight() / 2 - windowHeight / 2)
+
+    # Positions the window in the center of the page.
+    root.geometry("+{}+{}".format(positionRight, positionDown))
+    #root.geometry("".format(positionRight, positionDown))
     App(root).grid()
     root.mainloop()
