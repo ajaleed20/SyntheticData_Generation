@@ -8,11 +8,13 @@ import collections
 import statistics
 import sklearn
 import math
+
+from matplotlib import pyplot
+from pandas import read_csv
 from sklearn.utils import shuffle
 import os
 import ctypes
 from util.enums import GanualityLevel
-
 
 
 
@@ -55,7 +57,11 @@ class App(tk.Frame):
         self.question8 = tk.Entry(self)
         self.question8.grid(row=7, column=1)
 
-        tk.Button(self,text="Go",command = self.collectAnswers).grid(row=8,column=1)
+        try:
+            tk.Button(self,text="Go",command = self.collectAnswers).grid(row=8,column=1)
+        except ValueError as e:
+            ctypes.windll.user32.MessageBoxW(0, str(e)+"\n\n Rerun Code to enter values correctly", "ERROR MESSAGE", 1)
+            exit(0)
 
 
     def collectAnswers(self):
@@ -69,9 +75,9 @@ class App(tk.Frame):
         self.answers['FileName'] = self.question8.get()
         printAnswers(self.answers)
         ROOT_DIR = os.path.abspath(os.curdir)
-        time.sleep(10)
+        ctypes.windll.user32.MessageBoxW(0,"Generating Synthetic TimeSeries Data......\n")
+        time.sleep(5)
         ctypes.windll.user32.MessageBoxW(0, "Synthetic Random Data Generation Done!\n\n File Created at location:\n"+ str(ROOT_DIR), "Synthetic Data Generation", 1)
-
         exit(0)
 
 #
@@ -93,11 +99,18 @@ def printAnswers(answers):
     print(MaxVal_bm)
     SyntheticValuesCount = 0
 
-    sdate = datetime.strptime(answers['SDate'], "%Y-%m-%d")
-    edate = datetime.strptime(answers['EDate'], "%Y-%m-%d")
-    deltadate = sdate - edate
-    deltadate = abs(deltadate)
-    print(deltadate.days)
+    try:
+        sdate = datetime.strptime(answers['SDate'], "%Y-%m-%d")
+        edate = datetime.strptime(answers['EDate'], "%Y-%m-%d")
+        deltadate = sdate - edate
+        deltadate = abs(deltadate)
+        print(deltadate.days)
+    except ValueError as e:
+        ctypes.windll.user32.MessageBoxW(0,str(e),"ERROR MESSAGE", 1)
+        print(e)
+        exit(0)
+    #"Date Format entered wrong: Rerun Code with following format\n\n 'yy-mm-dddd'"
+
 
     if answers['Granularity'] == 'd':
         SyntheticValuesCount = deltadate.days
@@ -110,7 +123,6 @@ def printAnswers(answers):
     elif answers['Granularity'] == 'm':
         SyntheticValuesCount = (deltadate.days) * 24 * 60
         level = GanualityLevel.one_minute.value
-
 
     elif answers['Granularity'] == 's':
         SyntheticValuesCount = (deltadate.days) * 24 * 60 * 60
@@ -129,8 +141,16 @@ def printAnswers(answers):
         level = GanualityLevel.one_week.value
 
     else:
-        SyntheticValuesCount = deltadate.days
-        level = GanualityLevel.one_day.value
+        print("Granularity entered wrong: Rerun Code with following entry:\n\n"+
+                  "h:hourly\n"+
+                  "s: Second\n"+
+                  "d: daily\n"+
+                  "w:weekly\n"+
+                  "ts:thirty seconds\n"+
+                  "tm:ten minutes\n")
+        ctypes.windll.user32.MessageBoxW(0, "Granularity entered wrong: h:hourly\n s:second\n d:daily\n w:weekly\n ts:thirty seconds\n tm:ten minutes\n", "ERROR MESSAGE", 1)
+        exit(0)
+
 
     benchmarkrange = math.ceil(float(0.50 * SyntheticValuesCount))  # 60% values from within benchmark defined
     limitrange     = math.ceil(int(0.30 * SyntheticValuesCount))   # 35% values from within low limit 1 & 2 defined
@@ -186,7 +206,14 @@ def printAnswers(answers):
     df = df.sort_values(by='ts')
     df.to_csv(answers['FileName'] + '.csv', index=False)
     print(df)
-    print("end")
+    #
+    # series = read_csv(answers['FileName'] + '.csv', header=0, index_col=0)
+    # print(series.shape)
+    # pyplot.plot(series)
+    # pyplot.show()
+    # print("end")
+
+    #series = read_csv('monthly-car-sales.csv', header=0, index_col=0)
 
 
 def get_freq_by_level(ganuality_level_value):
